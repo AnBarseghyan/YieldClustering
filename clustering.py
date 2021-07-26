@@ -1,4 +1,3 @@
-import argparse
 import pickle
 
 import matplotlib.pyplot as plt
@@ -12,14 +11,23 @@ from sklearn.preprocessing import StandardScaler
 
 class YieldClustering:
 
-    def __init__(self, data):
-        self.data = data
+    def __init__(self, file_name: str):
+        """
+
+        Args:
+            file_name: pickle file name
+        """
+        self.file_name = file_name
         self.wcss = {}
         self.clusters = 0
 
-    def get_data(self, data: pd.DataFrame) -> pd.DataFrame:
-        """ get only the features which are used for clustering
+    def get_data(self, file_name: str) -> pd.DataFrame:
+        """ get dataframe with only the features which are used for clustering
         """
+        pkl_file = open(file_name, 'rb')
+        data = pickle.load(pkl_file)
+        pkl_file.close()
+
         data = data[['Low Emergence_mean', 'New yield risk_mean', 'Nutrient Deficiency_mean', 'Replant Risk_mean',
                      'harvest_mean']]
         return data
@@ -36,7 +44,7 @@ class YieldClustering:
 
     def elbow_method(self, data: pd.DataFrame) -> pd.DataFrame:
         """
-        using elbow method function returns the best three number of clus
+        using elbow method function returns the best three number of cluster
 
         """
         epsilon, best_cluster = 0.1, 0
@@ -49,7 +57,6 @@ class YieldClustering:
         plt.plot(range(1, 15), self.wcss.values())
         plt.title('Elbow Method')
         plt.xlabel('Number of clusters')
-        plt.close()
         plt.savefig('Elbow_method')
 
         return [best_cluster - 1, best_cluster, best_cluster + 1]
@@ -71,7 +78,7 @@ class YieldClustering:
     def train(self):
         """ train kmeans and save best model
         """
-        data = self.get_data(self.data)
+        data = self.get_data(self.file_name)
         scale_data = self.data_scale(data)
         best_clusters = self.elbow_method(scale_data)
         params = {'n_clusters': best_clusters,
@@ -91,19 +98,19 @@ class YieldClustering:
 
         self.model = model
 
-    def get_prediction(self, data: pd.DataFrame = None) -> pd.DataFrame:
-        """ predict clusters for given data, if data is None, prediction is done for train data
+    def get_prediction(self, file_name: str = None) -> pd.DataFrame:
+        """ predict clusters for given data, if file_name is None, prediction is done for train data
 
         Args:
-            data: feature set for prediction
+            file_name: pickle file name
 
-        Returns: the same df with cluster predictions
+        Returns:  df with cluster predictions
         """
 
-        if data is None:
-            data = self.data
+        if file_name is None:
+            file_name = self.file_name
 
-        data = self.get_data(self.data)
+        data = self.get_data(file_name)
         sc = pickle.load(open('scale_norm.pkl', 'rb'))
         scale_data = sc.transform(data)
 
@@ -131,15 +138,15 @@ class YieldClustering:
             feature_values[j] = lst
         return feature_values
 
-    def cluster_analysis(self, data: pd.DataFrame = None):
+    def cluster_analysis(self, file_name: str = None):
         """ plot alert features means by groups based on clustering,
-        if data is None, prediction is done for train data
+        if file_name is None, prediction is done for train data
         """
-        if data is None:
-            data = self.data
+        if file_name is None:
+            file_name = self.file_name
 
         groups = []
-        data = self.get_prediction(data)
+        data = self.get_prediction(file_name)
         feature_values = self.get_featues_mean_for_clusters(data)
         for i in range(self.clusters):
             groups.append(f'cluster{i + 1}')
@@ -158,13 +165,4 @@ class YieldClustering:
         axes2.set_ylabel('harvest_mean, mean')
         plt.ylim(180, 250)
         plt.show
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("data", type=pd.DataFrame, help="the initial dataframe which are used for cluster analysis")
-    args = parser.parse_args()
-    model = YieldClustering(args.data)
-    model.train()
-    model.cluster_analysis()
-    print("Analysis is done")
+        plt.savefig('Cluster Analysis')
